@@ -12,12 +12,23 @@ package message_pkg is
     data : string_ptr_t;
   end record;
 
-  type unetwork_t is record
-    event : boolean;
+  type i64_t is record
+    low : integer;
+    high : integer;
   end record;
+
+  constant i64_zero : i64_t := (low => integer'left, high => integer'left);
+
+  function inc(value : i64_t) return i64_t;
+  function max(v1, v2 : i64_t) return i64_t;
+
+  type unetwork_t is record
+    event_count : i64_t;
+  end record;
+
   type unetwork_vec_t is array (integer range <>) of unetwork_t;
 
-  constant idle_network : unetwork_t := (event => false);
+  constant idle_network : unetwork_t := (event_count => i64_zero);
 
   function resolved(networks : unetwork_vec_t) return unetwork_t;
   subtype network_t is resolved unetwork_t;
@@ -25,28 +36,54 @@ package message_pkg is
   signal net : network_t := idle_network;
 
   procedure send_message(self : actor_t;
-                         signal net : inout network_t;
                          actor : actor_t;
                          data : string);
+
+  procedure notify(signal net : inout network_t);
 
   procedure wait_for_messages(self : actor_t; signal net : inout network_t);
   impure function has_messages(self : actor_t) return boolean;
   impure function message_sender(self : actor_t) return actor_t;
   impure function message_data(self : actor_t) return string;
-  procedure pop_message(self : actor_t; signal net : inout network_t);
+  procedure pop_message(self : actor_t);
 
   procedure print_network_state;
 end package;
 
 package body message_pkg is
   function resolved(networks : unetwork_vec_t) return unetwork_t is
+    variable event_count : i64_t := i64_zero;
   begin
     for i in networks'range loop
-      if networks(i).event then
-        return (event => true);
-      end if;
+      event_count := max(networks(i).event_count, event_count);
     end loop;
-    return (event => false);
+    return (event_count => event_count);
+  end function;
+
+  function inc(value : i64_t) return i64_t is
+  begin
+    if value.low = integer'right then
+      return (low => integer'left,
+              high => value.high + 1);
+      -- Assume high will never wrap and that this function is not called 2**64
+      -- times
+    else
+      return (low => value.low + 1,
+              high => value.high);
+    end if;
+  end function;
+
+  function max(v1, v2 : i64_t) return i64_t is
+  begin
+    if v1.high > v2.high then
+      return v1;
+    elsif v1.high < v2.high then
+      return v2;
+    elsif v1.low < v2.low then
+      return v2;
+    else
+      return v1;
+    end if;
   end function;
 
   type message_node_t;
@@ -107,10 +144,12 @@ package body message_pkg is
     impure function first_message_data(actor : actor_t) return string;
     procedure pop_message(actor : actor_t);
     procedure pretty_print;
+    impure function event_count return i64_t;
   end protected;
 
   type network_state_t is protected body
     variable actors : actor_node_vec_ptr_t := null;
+    variable my_event_count : i64_t := i64_zero;
 
     impure function num_actors return natural is
     begin
@@ -150,9 +189,15 @@ package body message_pkg is
       return 0;
     end function;
 
+    impure function event_count return i64_t is
+    begin
+      return my_event_count;
+    end function;
+
     procedure send_message(from_actor, to_actor : actor_t; data : string) is
       variable message_node : message_node_ptr_t;
     begin
+      my_event_count := inc(my_event_count);
       message_node := new message_node_t'(
         message => new_message(from_actor, data),
         next_node => null);
@@ -232,29 +277,26 @@ package body message_pkg is
     return network_state.lookup_actor(name);
   end function;
 
+  procedure notify(signal net : inout network_t) is
+  begin
+    net.event_count <= network_state.event_count;
+  end procedure;
+
   procedure send_message(self : actor_t;
-                         signal net : inout network_t;
                          actor : actor_t;
                          data : string) is
   begin
     network_state.send_message(from_actor => self,
                                to_actor => actor,
                                data => data);
-    if not net.event then
-      net.event <= true;
-      wait until net.event;
-      net.event <= false;
-    end if;
   end procedure;
 
   procedure wait_for_messages(self : actor_t; signal net : inout network_t) is
+    variable next_count : i64_t;
   begin
     while not has_messages(self) loop
-      if net.event then
-        wait until not net.event;
-      else
-        wait until net.event;
-      end if;
+      next_count := inc(network_state.event_count);
+      wait until net.event_count = next_count;
     end loop;
   end procedure;
 
@@ -273,7 +315,7 @@ package body message_pkg is
     return network_state.first_message_data(self);
   end function;
 
-  procedure pop_message(self : actor_t; signal net : inout network_t) is
+  procedure pop_message(self : actor_t) is
   begin
     network_state.pop_message(self);
   end procedure;
