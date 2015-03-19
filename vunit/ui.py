@@ -18,6 +18,8 @@ import vunit.ostools as ostools
 from vunit.color_printer import (ColorPrinter,
                                  NoColorPrinter)
 from vunit.modelsim_interface import ModelSimInterface
+from vunit.riviera_pro_interface import RivieraProInterface
+
 from vunit.project import Project
 from vunit.test_runner import TestRunner
 from vunit.test_report import TestReport
@@ -58,7 +60,8 @@ class VUnit:
                    test_filter=test_filter,
                    list_only=args.list,
                    compile_only=args.compile,
-                   gui=args.gui)
+                   gui=args.gui,
+                   aldec=args.aldec)
 
     @classmethod
     def _create_argument_parser(cls):
@@ -95,10 +98,14 @@ class VUnit:
         parser.add_argument('--no-color', action='store_true',
                            default=False,
                            help='Do not color output')
-
+        
         parser.add_argument('--gui', action='store_true',
                            default=False,
                            help='Open test case(s) in simulator gui')
+        
+        parser.add_argument('-A', '--aldec', action='store_true',
+                           default=False,
+                           help='Use Riviera Pro toolchain')
 
         parser.add_argument('--log-level',
                             default="warning",
@@ -120,10 +127,11 @@ class VUnit:
                  vhdl_standard='2008',
                  compile_builtins=True,
                  persistent_sim=True,
-                 gui=False):
+                 gui=False,
+                 aldec=False):
 
         self._project = Project()
-
+        
         self._output_path = output_path
         self._clean = clean
 
@@ -143,7 +151,8 @@ class VUnit:
         self._compile_only = compile_only
         self._elaborate_only = elaborate_only
         self._vhdl_standard = vhdl_standard
-
+        self._aldec = aldec
+        
         self._tb_filter = tb_filter
         self._persistent_sim = persistent_sim
         self._gui = gui
@@ -151,7 +160,6 @@ class VUnit:
         self._external_preprocessors = []
         self._location_preprocessor = None
         self._check_preprocessor = None
-
         self._create_output_path()
 
         if compile_builtins:
@@ -279,6 +287,7 @@ class VUnit:
 
         simulator_if = self._create_simulator_if()
         test_cases = self._create_tests(simulator_if)
+
         self._compile(simulator_if)
 
         report = self._run_test(test_cases)
@@ -313,10 +322,16 @@ class VUnit:
             makedirs(self._output_path)
 
     def _create_simulator_if(self):
-        return ModelSimInterface(
-            join(self._output_path, "modelsim.ini"),
-            persistent=self._persistent_sim and not self._gui,
-            gui=self._gui)
+        if self._aldec:
+            return RivieraProInterface(
+                join(self._output_path, "library.cfg"),
+                persistent=False,
+                gui=self._gui)
+        else:            
+            return ModelSimInterface(
+                join(self._output_path, "modelsim.ini"),
+                persistent=self._persistent_sim and not self._gui,
+                gui=self._gui)
 
     @property
     def _preprocessed_path(self):
