@@ -32,9 +32,11 @@ architecture tb of tb_uart_rx is
   signal tready : std_logic := '0';
   signal tvalid : std_Logic;
   signal tdata : std_logic_vector(7 downto 0);
+  signal runner : runner_sync_t; 
 
   signal num_overflows : integer := 0;
 begin
+  runner <= vunit_lib.run_base_pkg.runner;      
 
   main : process
     variable filter : log_filter_t;

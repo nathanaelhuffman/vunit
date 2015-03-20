@@ -164,6 +164,7 @@ proc vunit_load {{}} {{
 
     def _create_run_function(self, fail_on_warning=False):
         return """
+        
 proc vunit_run {} {
     global BreakOnAssertion
 
@@ -176,8 +177,12 @@ proc vunit_run {} {
     onbreak {on_break}
 
     set no_finished_signal [catch {examine {vunit_finished}}]
-
-    if {${no_finished_signal}} {
+    
+    set aldec_no_finished_signal [catch {exa {runner.exit_without_errors}}]
+    
+    if {${aldec_no_finished_signal} == 0} {
+        set exit_boolean {runner.exit_without_errors}
+    } elseif {${no_finished_signal}} {
         set exit_boolean {/vunit_lib.run_base_pkg/runner.exit_without_errors}
     } {
         set exit_boolean {vunit_finished}
@@ -228,10 +233,10 @@ proc vunit_help {} {
         """
         batch_do = "do " + fix_path(common_file_name) + "\n"
         batch_do += "null [set failed [vunit_load]]\n"
-        batch_do += "if {$failed} {quit -f -code 1}\n"
+        batch_do += "if {$failed} {quit -force -code 1}\n"
         if not load_only:
             batch_do += "null [set failed [vunit_run]]\n"
-            batch_do += "if {$failed} {quit -f -code 1}\n"
+            batch_do += "if {$failed} {quit -force -code 1}\n"
         batch_do += "exit\n"
         return batch_do
 
@@ -292,14 +297,14 @@ proc vunit_help {} {
     def simulate(self, output_path, library_name, entity_name, architecture_name=None, generics=None, pli=None, load_only=None, fail_on_warning=False):
         generics = {} if generics is None else generics
         pli = [] if pli is None else pli
-        msim_output_path = abspath(join(output_path, "msim"))
-        common_file_name = join(msim_output_path, "common.do")
-        user_file_name = join(msim_output_path, "user.do")
-        batch_file_name = join(msim_output_path, "batch.do")
+        asim_output_path = abspath(join(output_path, "asim"))
+        common_file_name = join(asim_output_path, "common.do")
+        user_file_name = join(asim_output_path, "user.do")
+        batch_file_name = join(asim_output_path, "batch.do")
 
         common_do = self._create_common_script(library_name, entity_name, architecture_name, generics, pli,
                                                fail_on_warning=fail_on_warning,
-                                               output_path=msim_output_path)
+                                               output_path=asim_output_path)
         user_do = self._create_user_script(common_file_name)
         batch_do = self._create_batch_script(common_file_name, load_only)
         write_file(common_file_name, common_do)

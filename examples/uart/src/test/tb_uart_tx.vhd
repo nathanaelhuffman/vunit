@@ -34,10 +34,12 @@ architecture tb of tb_uart_tx is
   signal tready : std_logic;
   signal tvalid : std_Logic := '0';
   signal tdata : std_logic_vector(7 downto 0) := (others => '0');
+  signal runner : runner_sync_t; 
 
   signal num_sent, num_recv : integer := 0;
   shared variable rnd_stimuli, rnd_expected : RandomPType;
 begin
+  runner <= vunit_lib.run_base_pkg.runner;      
 
   main : process
     variable index : integer := 0;
