@@ -9,7 +9,7 @@ from __future__ import print_function
 import argparse
 import os
 from os.path import dirname, exists, abspath, join, basename, splitext
-from os import makedirs, getcwd, popen
+from os import makedirs, getcwd
 from shutil import rmtree
 from glob import glob
 import traceback
@@ -20,7 +20,6 @@ from vunit.color_printer import (ColorPrinter,
                                  NoColorPrinter)
 from vunit.modelsim_interface import ModelSimInterface
 from vunit.riviera_pro_interface import RivieraProInterface
-
 from vunit.project import Project
 from vunit.test_runner import TestRunner
 from vunit.test_report import TestReport
@@ -130,14 +129,10 @@ class VUnit:
         parser.add_argument('--no-color', action='store_true',
                            default=False,
                            help='Do not color output')
-        
+
         parser.add_argument('--gui', action='store_true',
                            default=False,
                            help='Open test case(s) in simulator gui')
-        
-        parser.add_argument('-A', '--aldec', action='store_true',
-                           default=False,
-                           help='Use Riviera Pro toolchain')
 
         parser.add_argument('--log-level',
                             default="warning",
@@ -167,7 +162,7 @@ class VUnit:
                  simulator_name=None):
 
         self._project = Project()
-        
+
         self._output_path = output_path
         self._clean = clean
 
@@ -187,15 +182,7 @@ class VUnit:
         self._compile_only = compile_only
         self._elaborate_only = elaborate_only
         self._vhdl_standard = vhdl_standard
-        self._aldec = aldec
 
-        if aldec == False:            
-            v=popen("vcom -version")
-            version_string = v.read()
-            v.close()
-            if version_string.find("Aldec") == 0:
-                self._aldec = True
-        
         self._tb_filter = tb_filter
         self._persistent_sim = persistent_sim
         self._gui = gui
@@ -337,7 +324,6 @@ class VUnit:
 
         simulator_if = self._create_simulator_if()
         test_cases = self._create_tests(simulator_if)
-
         self._compile(simulator_if)
 
         report = self._run_test(test_cases)
