@@ -4,11 +4,10 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2015, Lars Asplund lars.anders.asplund@gmail.com
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
 use std.textio.all;
 use work.log_types_pkg.all;
 use work.log_special_types_pkg.all;
@@ -36,4 +35,3 @@ end package;
 
 package body check_types_pkg is
 end package body check_types_pkg;
-

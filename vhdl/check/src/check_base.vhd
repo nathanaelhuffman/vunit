@@ -5,11 +5,10 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2015, Lars Asplund lars.anders.asplund@gmail.com
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
 use std.textio.all;
 use work.check_types_pkg.all;
 use work.log_base_pkg.all;
@@ -46,7 +45,7 @@ package body check_base_pkg is
     constant msg          : in    string := "Check failed!";
     constant level        : in    log_level_t := dflt;
     constant line_num : in natural := 0;
-    constant file_name : in string := "") is    
+    constant file_name : in string := "") is
   begin
     -- pragma translate_off
     checker.check(expr, msg, level, line_num, file_name);
@@ -54,7 +53,7 @@ package body check_base_pkg is
   end;
 
   procedure base_get_checker_stat (
-    variable checker : inout checker_t;    
+    variable checker : inout checker_t;
     variable stat : out checker_stat_t) is
   begin
     -- pragma translate_off
@@ -136,7 +135,7 @@ package body check_base_pkg is
   end;
 
   procedure base_checker_found_errors (
-    variable checker : inout checker_t;    
+    variable checker : inout checker_t;
     variable result : out   boolean) is
   begin
     -- pragma translate_off
@@ -145,6 +144,3 @@ package body check_base_pkg is
   end;
 
 end package body check_base_pkg;
-
-
-

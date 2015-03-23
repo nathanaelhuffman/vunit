@@ -7,6 +7,7 @@
 from __future__ import print_function
 
 import argparse
+import os
 from os.path import dirname, exists, abspath, join, basename, splitext
 from os import makedirs, getcwd, popen
 from shutil import rmtree
@@ -39,13 +40,35 @@ class VUnit:
 
     _builtin_vhdl_path = abspath(join(dirname(__file__), "..", "vhdl"))
 
+    @staticmethod
+    def _available_simulators():
+        """
+        Return a list of available simulators
+        """
+        sims = []
+        if ModelSimInterface.is_available():
+            sims.append(ModelSimInterface.name)
+        return sims
+
     @classmethod
-    def from_argv(cls, argv=None):
+    def from_argv(cls, argv=None, preferred_simulator=None):
         """
         Create VUnit instance from command line arguments
         Can take arguments from 'argv' if not None  instead of sys.argv
         """
-        parser = cls._create_argument_parser()
+        simulators = cls._available_simulators()
+
+        environ_name = "VUNIT_SIMULATOR"
+
+        if preferred_simulator is not None:
+            cls._validate_simulator(preferred_simulator, simulators,
+                                    description="preferred_simulator")
+        elif environ_name in os.environ:
+            preferred_simulator = os.environ[environ_name]
+            cls._validate_simulator(preferred_simulator, simulators,
+                                    description="Simulator from " + environ_name + " environment variable")
+
+        parser = cls._create_argument_parser(simulators, preferred_simulator=preferred_simulator)
         args = parser.parse_args(args=argv)
 
         def test_filter(name):
@@ -61,10 +84,19 @@ class VUnit:
                    list_only=args.list,
                    compile_only=args.compile,
                    gui=args.gui,
-                   aldec=args.aldec)
+                   simulator_name=args.sim)
+
+    @staticmethod
+    def _validate_simulator(preferred_simulator, simulators, description):
+        if len(simulators) == 0:
+            raise RuntimeError("No simulator detected")
+        elif preferred_simulator is not None:
+            if not preferred_simulator in simulators:
+                raise RuntimeError("%s: %r is not available. Available simulators are %r"
+                                   % (description, preferred_simulator, simulators))
 
     @classmethod
-    def _create_argument_parser(cls):
+    def _create_argument_parser(cls, simulators, preferred_simulator):
         parser = argparse.ArgumentParser(description='VUnit command line tool.')
 
         parser.add_argument('test_patterns', metavar='tests', nargs='*',
@@ -111,6 +143,10 @@ class VUnit:
                             default="warning",
                             choices=["info", "error", "warning", "debug"])
 
+        parser.add_argument('--sim',
+                            default=preferred_simulator,
+                            choices=simulators)
+
         return parser
 
     def __init__(self,
@@ -128,7 +164,7 @@ class VUnit:
                  compile_builtins=True,
                  persistent_sim=True,
                  gui=False,
-                 aldec=False):
+                 simulator_name=None):
 
         self._project = Project()
         
@@ -167,6 +203,13 @@ class VUnit:
         self._external_preprocessors = []
         self._location_preprocessor = None
         self._check_preprocessor = None
+
+        if simulator_name is not None:
+            self._simulator_name = simulator_name
+        else:
+            self._simulator_name = self._available_simulators()[0]
+
+        self._sim_specific_path = join(self._output_path, self._simulator_name)
         self._create_output_path()
 
         if compile_builtins:
@@ -183,7 +226,7 @@ class VUnit:
         """
         Add vunit managed white box library
         """
-        path = join(self._output_path, "libraries", library_name)
+        path = join(self._sim_specific_path, "libraries", library_name)
         self._project.add_library(library_name, abspath(path))
         return LibraryFacade(library_name, self)
 
@@ -328,17 +371,17 @@ class VUnit:
         if not exists(self._output_path):
             makedirs(self._output_path)
 
+        if not exists(self._sim_specific_path):
+            makedirs(self._sim_specific_path)
+
     def _create_simulator_if(self):
-        if self._aldec:
-            return RivieraProInterface(
-                join(self._output_path, "library.cfg"),
-                persistent=False,
-                gui=self._gui)
-        else:            
+        if self._simulator_name == ModelSimInterface.name:
             return ModelSimInterface(
-                join(self._output_path, "modelsim.ini"),
+                join(self._sim_specific_path, "modelsim.ini"),
                 persistent=self._persistent_sim and not self._gui,
                 gui=self._gui)
+        else:
+            raise RuntimeError("Unknown simulator %s" % self._simulator_name)
 
     @property
     def _preprocessed_path(self):
@@ -384,6 +427,7 @@ class VUnit:
                   join("check", "src", "check_api.vhd"),
                   join("check", "src", "check_base_api.vhd"),
                   join("check", "src", "check_types.vhd"),
+                  join("run", "src", "stop_api.vhd"),
                   join("run", "src", "run.vhd"),
                   join("run", "src", "run_api.vhd"),
                   join("run", "src", "run_types.vhd"),
@@ -397,6 +441,11 @@ class VUnit:
         files +=  [join("dictionary", "src", "dictionary.vhd")]
 
         files +=  [join("path", "src", "path.vhd")]
+
+        if self._vhdl_standard == '2008':
+            files += [join("run", "src", "stop_body_2008.vhd")]
+        else:
+            files += [join("run", "src", "stop_body_dummy.vhd")]
 
         if self._vhdl_standard == '93':
             if mock_log:
