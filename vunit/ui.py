@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import argparse
 from os.path import dirname, exists, abspath, join, basename, splitext
-from os import makedirs, getcwd
+from os import makedirs, getcwd, popen
 from shutil import rmtree
 from glob import glob
 import traceback
@@ -152,6 +152,13 @@ class VUnit:
         self._elaborate_only = elaborate_only
         self._vhdl_standard = vhdl_standard
         self._aldec = aldec
+
+        if aldec == False:            
+            v=popen("vcom -version")
+            version_string = v.read()
+            v.close()
+            if version_string.find("Aldec") == 0:
+                self._aldec = True
         
         self._tb_filter = tb_filter
         self._persistent_sim = persistent_sim

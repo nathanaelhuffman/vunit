@@ -48,7 +48,7 @@ class RivieraProInterface:
         Create the asim process
         """
 
-        self._asim_process = Process(["vsim", "-c",
+        self._asim_process = Process(["vsimsa",
                                       "-l", join(dirname(self._library_cfg), "transcript")])
         self._asim_process.write("#VUNIT_RETURN\n")
         self._asim_process.consume_output(OutputConsumer(silent=True))
@@ -247,7 +247,7 @@ proc vunit_help {} {
 
     def _run_batch_file(self, batch_file_name, gui=False):
         try:
-            args = ['vsim', '-quiet',
+            args = ['vsimsa',
                     "-l", join(dirname(batch_file_name), "transcript"),
                     '-do', "do %s" % fix_path(batch_file_name)]
             
