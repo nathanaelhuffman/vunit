@@ -47,6 +47,10 @@ class VUnit:
         sims = []
         if ModelSimInterface.is_available():
             sims.append(ModelSimInterface.name)
+            
+        if RivieraProInterface.is_available():
+            sims.append(RivieraProInterface.name)
+
         return sims
 
     @classmethod
@@ -365,6 +369,9 @@ class VUnit:
             return ModelSimInterface(
                 join(self._sim_specific_path, "modelsim.ini"),
                 persistent=self._persistent_sim and not self._gui,
+                gui=self._gui)
+        elif self._simulator_name == RivieraProInterface.name:
+            return RivieraProInterface(                               
                 gui=self._gui)
         else:
             raise RuntimeError("Unknown simulator %s" % self._simulator_name)

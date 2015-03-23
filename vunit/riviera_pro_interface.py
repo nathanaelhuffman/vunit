@@ -17,14 +17,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RivieraProInterface:
+    name = "riviera-pro"
+    @staticmethod
+    def is_available():
+        """
+        Return True if Riviera-Pro is installed
+        """
+        try:
+            proc = Process(['vsimsa', '-version'])
+            proc.consume_output(callback=None)
+            return True
+        except:
+            return False
+
     def __init__(self, library_cfg="library.cfg", persistent=False, gui=False):
         self._library_cfg = library_cfg
-
-        # Workarround for Microsemi 10.3a which does not 
-        # respect riviera environment variable when set within .do script
-        # Microsemi bug reference id: dvt64978 
-        os.environ["riviera"] = self._library_cfg
-
+        
         self._create_library_cfg()
         self._asim_process = None
         self._gui = gui
