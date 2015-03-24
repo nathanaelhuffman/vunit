@@ -8,7 +8,7 @@ from __future__ import print_function
 
 from vunit.ostools import Process, write_file, file_exists, read_file
 import re
-from os.path import join, dirname, abspath
+from os.path import join, dirname, abspath, isfile, normpath
 import os
 
 from vunit.exceptions import CompileError
@@ -16,20 +16,41 @@ from vunit.exceptions import CompileError
 class ModelSimInterface:
 
     name = "modelsim"
-
+    
     @staticmethod
     def is_available():
         """
-        Return True if ModelSim is installed
+        Return True if Riviera-Pro is installed
         """
-        try:
-            proc = Process(['vsim', '-c', '-help'])
-            proc.consume_output(callback=None)
-            return True
-        except:
-            return False
+        path = None
+        for v in os.getenv('PATH').split(':'):            
+            try:
+                if isfile(v + '/' + 'vcom'):
+                    proc = Process([v + '/' + 'vcom', '-version'])
+                    proc.consume_output(callback=None)
+                    if "Model" in proc.output:
+                        path = v
+                        break;                    
+            except:
+                None
+        return path;
 
-    def __init__(self, modelsim_ini="modelsim.ini", persistent=False, gui=False):
+    def __init__(self, modelsim_ini="modelsim.ini", persistent=False, gui=False, path=None):
+        
+        if type(path)is str:
+            self.vsim = normpath(path + '/' + 'vsim')
+            self.vlib = normpath(path + '/' + 'vlib')
+            self.vmap = normpath(path + '/' + 'vmap')
+            self.vcom = normpath(path + '/' + 'vcom')
+            self.vlog = normpath(path + '/' + 'vlog')          
+        else:
+            self.vsim = 'vsim'
+            self.vlib = 'vlib'
+            self.vmap = 'vmap'
+            self.vcom = 'vcom'
+            self.vlog = 'vlog'
+        
+        
         self._modelsim_ini = modelsim_ini
 
         # Workarround for Microsemi 10.3a which does not
@@ -40,6 +61,7 @@ class ModelSimInterface:
         self._create_modelsim_ini()
         self._vsim_process = None
         self._gui = gui
+        self._path = path
         assert not (persistent and gui)
 
         if persistent:
@@ -60,14 +82,14 @@ class ModelSimInterface:
         Create the vsim process
         """
 
-        self._vsim_process = Process(["vsim", "-c",
+        self._vsim_process = Process([self.vsim, "-c",
                                       "-l", join(dirname(self._modelsim_ini), "transcript")])
         self._vsim_process.write("#VUNIT_RETURN\n")
         self._vsim_process.consume_output(OutputConsumer(silent=True))
 
     def _create_modelsim_ini(self):
         if not file_exists(self._modelsim_ini):
-            proc = Process(args=['vmap', '-c'], cwd=dirname(self._modelsim_ini))
+            proc = Process(args=[self.vmap, '-c'], cwd=dirname(self._modelsim_ini))
             proc.consume_output(callback=None)
 
     def compile_project(self, project, vhdl_standard):
@@ -90,7 +112,7 @@ class ModelSimInterface:
 
     def compile_vhdl_file(self, source_file_name, library_name, vhdl_standard):
         try:
-            proc = Process(['vcom', '-quiet', '-modelsimini', self._modelsim_ini,
+            proc = Process([self.vcom, '-quiet', '-modelsimini', self._modelsim_ini,
                             '-' + vhdl_standard, '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
@@ -99,7 +121,7 @@ class ModelSimInterface:
 
     def compile_verilog_file(self, source_file_name, library_name):
         try:
-            proc = Process(['vlog', '-sv', '-quiet', '-modelsimini', self._modelsim_ini,
+            proc = Process([self.vlog, '-sv', '-quiet', '-modelsimini', self._modelsim_ini,
                             '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
@@ -114,11 +136,11 @@ class ModelSimInterface:
             os.makedirs(dirname(path))
 
         if not file_exists(path):
-            proc = Process(['vlib', '-unix', path])
+            proc = Process([self.vlib, '-unix', path])
             proc.consume_output(callback=None)
 
         try:
-            proc = Process(['vmap', '-modelsimini', self._modelsim_ini, library_name])
+            proc = Process([self.vmap, '-modelsimini', self._modelsim_ini, library_name])
             proc.consume_output(callback=None)
         except Process.NonZeroExitCode:
             pass
@@ -133,7 +155,7 @@ class ModelSimInterface:
             do_vmap = True
 
         if do_vmap:
-            proc = Process(['vmap','-modelsimini', self._modelsim_ini, library_name, path])
+            proc = Process([self.vmap,'-modelsimini', self._modelsim_ini, library_name, path])
             proc.consume_output(callback=None)
 
     def _create_load_function(self, library_name, entity_name, architecture_name, generics, pli, output_path):
@@ -258,7 +280,7 @@ proc vunit_help {} {
 
     def _run_batch_file(self, batch_file_name, gui=False):
         try:
-            args = ['vsim', '-quiet',
+            args = [self.vsim, '-quiet',
                     "-l", join(dirname(batch_file_name), "transcript"),
                     '-do', "do %s" % fix_path(batch_file_name)]
 

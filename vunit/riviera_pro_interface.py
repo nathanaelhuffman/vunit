@@ -9,33 +9,57 @@ from __future__ import print_function
 
 from vunit.ostools import Process, write_file, file_exists
 import re
-from os.path import join, dirname, abspath
+from os.path import join, dirname, abspath, isfile, normpath
 import os
 
 from vunit.exceptions import CompileError
 import logging
+from bb.data import path
+from __builtin__ import classmethod
 logger = logging.getLogger(__name__)
 
 class RivieraProInterface:
     name = "riviera-pro"
+    
     @staticmethod
     def is_available():
         """
         Return True if Riviera-Pro is installed
         """
-        try:
-            proc = Process(['vsimsa', '-version'])
-            proc.consume_output(callback=None)
-            return True
-        except:
-            return False
-
-    def __init__(self, library_cfg="library.cfg", persistent=False, gui=False):
+        path = None
+        for v in os.getenv('PATH').split(':'):            
+            try:
+                if isfile(v + '/' + 'vcom'):
+                    proc = Process([v + '/' + 'vcom', '-version'])
+                    proc.consume_output(callback=None)
+                    if "Aldec" in proc.output:
+                        path = v
+                        break;                    
+            except:
+                None
+                         
+        return path;
+            
+    def __init__(self, library_cfg="library.cfg", persistent=False, gui=False, path=None ):
         self._library_cfg = library_cfg
         
+        if type(path)is str:
+            self.vsim = normpath(path + '/' + 'vsim')
+            self.vlib = normpath(path + '/' + 'vlib')
+            self.vmap = normpath(path + '/' + 'vmap')
+            self.vcom = normpath(path + '/' + 'vcom')
+            self.vlog = normpath(path + '/' + 'vlog')             
+        else:
+            self.vsim = 'vsim'
+            self.vlib = 'vlib'
+            self.vmap = 'vmap'
+            self.vcom = 'vcom'
+            self.vlog = 'vlog'
+
         self._create_library_cfg()
         self._asim_process = None
         self._gui = gui
+        
         assert not (persistent and gui)
 
         if persistent:
@@ -55,15 +79,15 @@ class RivieraProInterface:
         """
         Create the asim process
         """
-
-        self._asim_process = Process(["vsimsa",
+                   
+        self._asim_process = Process([self.vsim,
                                       "-l", join(dirname(self._library_cfg), "transcript")])
         self._asim_process.write("#VUNIT_RETURN\n")
         self._asim_process.consume_output(OutputConsumer(silent=True))
 
     def _create_library_cfg(self):
         if not file_exists(self._library_cfg):
-            proc = Process(args=['vmap'], cwd=dirname(self._library_cfg))
+            proc = Process(args=[self.vmap], cwd=dirname(self._library_cfg))
             proc.consume_output(callback=None)
 
     def compile_project(self, project, vhdl_standard):
@@ -85,8 +109,9 @@ class RivieraProInterface:
             project.update(source_file)
 
     def compile_vhdl_file(self, source_file_name, library_name, vhdl_standard):
+        
         try:
-            proc = Process(['vcom', '-quiet', '-O3',
+            proc = Process([self.vcom, '-quiet', '-O3',
                             '-' + vhdl_standard, '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
@@ -94,8 +119,9 @@ class RivieraProInterface:
         return True
 
     def compile_verilog_file(self, source_file_name, library_name):
+       
         try:
-            proc = Process(['vlog', '-quiet', self._library_cfg,
+            proc = Process([self.vlog, '-quiet', self._library_cfg,
                             '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
@@ -111,12 +137,13 @@ class RivieraProInterface:
         #if not file_exists(dirname(path)):
         #    os.makedirs(dirname(path))
         logging.debug(os.getcwd())
-        #if not file_exists(path + '/' + library_name +'.lib'):
-        proc = Process(['vlib', path])
-        proc.consume_output(callback=None)
 
+        #if not file_exists(path + '/' + library_name +'.lib'):
+        proc = Process([self.vlib, path])
+        proc.consume_output(callback=None)
+        
         try:
-            proc = Process(['vmap', library_name])
+            proc = Process([self.vmap, library_name])
             proc.consume_output(callback=None)
         except Process.NonZeroExitCode:
             pass
@@ -132,7 +159,7 @@ class RivieraProInterface:
             do_vmap = True
 
         if do_vmap:
-            proc = Process(['vmap', library_name, path + "/" + library_name + ".lib"])
+            proc = Process([self.vmap, library_name, path + "/" + library_name + ".lib"])
             proc.consume_output(callback=None)
 
     def _create_load_function(self, library_name, entity_name, architecture_name, generics, pli, output_path):
@@ -255,7 +282,7 @@ proc vunit_help {} {
 
     def _run_batch_file(self, batch_file_name, gui=False):
         try:
-            args = ['vsimsa',
+            args = [self.vsim,
                     "-l", join(dirname(batch_file_name), "transcript"),
                     '-do', "do %s" % fix_path(batch_file_name)]
             
