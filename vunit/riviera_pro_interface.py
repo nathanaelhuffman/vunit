@@ -11,6 +11,7 @@ from vunit.ostools import Process, write_file, file_exists
 import re
 from os.path import join, dirname, abspath, isfile, normpath
 import os
+from distutils.spawn  import find_executable
 
 from vunit.exceptions import CompileError
 import logging
@@ -24,21 +25,13 @@ class RivieraProInterface:
     @staticmethod
     def is_available():
         """
-        Return True if Riviera-Pro is installed
+        Return path to executables, if Riviera-Pro is installed
         """
-        path = None
-        for v in os.getenv('PATH').split(':'):            
-            try:
-                if isfile(v + '/' + 'vcom'):
-                    proc = Process([v + '/' + 'vcom', '-version'])
-                    proc.consume_output(callback=None)
-                    if "Aldec" in proc.output:
-                        path = v
-                        break;                    
-            except:
-                None
-                         
-        return path;
+        p = find_executable("vsimsa")
+        if p:
+            return os.path.dirname(p)
+        else:
+            return None
             
     def __init__(self, library_cfg="library.cfg", persistent=False, gui=False, path=None ):
         self._library_cfg = library_cfg

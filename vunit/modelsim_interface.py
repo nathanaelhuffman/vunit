@@ -10,6 +10,7 @@ from vunit.ostools import Process, write_file, file_exists, read_file
 import re
 from os.path import join, dirname, abspath, isfile, normpath
 import os
+from distutils.spawn  import find_executable
 
 from vunit.exceptions import CompileError
 
@@ -20,21 +21,14 @@ class ModelSimInterface:
     @staticmethod
     def is_available():
         """
-        Return True if Riviera-Pro is installed
+        Return True if Modelsim is installed
         """
-        path = None
-        for v in os.getenv('PATH').split(':'):            
-            try:
-                if isfile(v + '/' + 'vcom'):
-                    proc = Process([v + '/' + 'vcom', '-version'])
-                    proc.consume_output(callback=None)
-                    if "Model" in proc.output:
-                        path = v
-                        break;                    
-            except:
-                None
-        return path;
-
+        p = find_executable("wlf2log")
+        if p:
+            return dirname(p)
+        else:
+            return None
+        
     def __init__(self, modelsim_ini="modelsim.ini", persistent=False, gui=False, path=None):
         
         if type(path)is str:
