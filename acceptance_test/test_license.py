@@ -34,8 +34,6 @@ class TestLicense(unittest.TestCase):
                 if splitext(f)[1] in ['.vhd', '.vhdl', '.py', '.v', '.sv']:
                     licensed_files.append(join(root, f))
         i = 0
-        min_first_year = None
-        max_last_year = None
         for f in licensed_files:
             stdout.write('\r%d/%d' % (i + 1, len(licensed_files)))
             stdout.flush()
@@ -48,8 +46,8 @@ class TestLicense(unittest.TestCase):
             for date in log_date.finditer(out):
                 first_year = int(date.group('year')) if first_year is None else min(int(date.group('year')), first_year)
                 last_year = int(date.group('year')) if last_year is None else max(int(date.group('year')), last_year)
-            min_first_year = first_year if min_first_year is None else min(min_first_year, first_year)
-            max_last_year = last_year if max_last_year is None else max(max_last_year, last_year)
+            if first_year is None:
+                continue
 
             with open(f) as fp:
                 code = fp.read()

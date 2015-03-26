@@ -2,13 +2,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2015, Lars Asplund lars.anders.asplund@gmail.com
                     
 from unittest import TestCase
 from vunit.vhdl_parser import (VHDLDesignFile,
                                VHDLInterfaceElement,
                                VHDLEntity,
-                               VHDLSubtypeIndication)
+                               VHDLSubtypeIndication,
+                               VHDLEnumerationType,
+                               VHDLRecordType)
 from os.path import join, dirname
 
 class TestVHDLParser(TestCase):
@@ -329,6 +331,51 @@ xx signal data : std_logic_vector(data_width-1 downto 0);
         self.assertEqual(entity.ports[0].identifier, "foo")
         self.assertEqual(entity.ports[0].mode, "inout")
         self.assertEqual(entity.ports[0].subtype_indication.type_mark, "foo_t")
+
+    def test_that_enumeration_type_declarations_are_found(self):
+        code = """\
+type incomplete_type_declaration_t;
+ type   color_t  is( blue ,red  , green ) ;  -- Color type
+type animal_t is (cow);"""
+
+        enums = {e.identifier:e.literals for e in VHDLEnumerationType.find(code)}
+        expect = {'color_t' : ['blue', 'red', 'green'], 'animal_t' : ['cow']}
+        self.assertEqual(enums, expect)
+
+    def test_that_record_type_declarations_are_found(self):
+        code = """\
+type space_time_t is record
+  x, y, z : real;
+  t : time;
+end record space_time_t;
+
+type complex_t is record
+  im, re : real;
+end record;
+
+ type  foo  is 
+record
+  bar:std_logic_vector(7 downto 0)  ;
+ end  record  ;"""
+
+        records = {e.identifier:e.elements for e in VHDLRecordType.find(code)}
+        self.assertEqual(len(records), 3);
+
+        self.assertIn('space_time_t', records);
+        self.assertEqual(records['space_time_t'][0].identifier_list, ['x','y','z']) 
+        self.assertEqual(records['space_time_t'][0].subtype_indication.type_mark, 'real') 
+        self.assertEqual(records['space_time_t'][1].identifier_list, ['t']) 
+        self.assertEqual(records['space_time_t'][1].subtype_indication.type_mark, 'time') 
+
+        self.assertIn('complex_t', records);
+        self.assertEqual(records['complex_t'][0].identifier_list, ['im', 're']) 
+        self.assertEqual(records['complex_t'][0].subtype_indication.type_mark, 'real') 
+
+        self.assertIn('foo', records);
+        self.assertEqual(records['foo'][0].identifier_list, ['bar']) 
+        self.assertEqual(records['foo'][0].subtype_indication.type_mark, 'std_logic_vector') 
+        self.assertEqual(records['foo'][0].subtype_indication.constraint, '(7 downto 0)') 
+        self.assertTrue(records['foo'][0].subtype_indication.array_type) 
 
     def parse_single_entity(self, code):
         """

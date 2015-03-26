@@ -26,6 +26,7 @@ from vunit.test_configuration import TestConfiguration
 from vunit.exceptions import CompileError
 from vunit.location_preprocessor import LocationPreprocessor
 from vunit.check_preprocessor import CheckPreprocessor
+from vunit.com import CodecGenerator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -322,6 +323,10 @@ class VUnit:
     def _preprocessed_path(self):
         return join(self._output_path, "preprocessed")
 
+    @property
+    def _codecs_path(self):
+        return join(self._output_path, "codecs")
+
     def _create_tests(self, simulator_if):
         scanner = TestScanner(simulator_if,
                               self._configuration,
@@ -413,6 +418,16 @@ class VUnit:
         for file_name in files:
             library.add_source_files(join(self._builtin_vhdl_path, file_name))
 
+    def add_com(self, library_name="vunit_lib"):
+        """
+        Add communication package
+        """
+        if self._vhdl_standard != '2008':
+            raise RuntimeError("Communication package only supports vhdl 2008")
+
+        library = self.library(library_name)
+        library.add_source_files(join(self._builtin_vhdl_path, "com", "src", "*.vhd"))
+
     def add_array_util(self, library_name="vunit_lib"):
         """
         Add array utility package
@@ -451,6 +466,26 @@ class LibraryFacade:
 
     def add_source_files(self, pattern, preprocessors=None):
         self._parent.add_source_files(pattern, self._library_name, preprocessors)
+
+    def generate_codecs(self, package_name, codec_package_name = None, used_packages=[], output_file_name=None):
+        self._parent.add_com()
+        library = self._parent._project._libraries[self._library_name]
+        design_unit = library.primary_design_units.get(package_name)
+        if design_unit is None:
+            raise KeyError(package_name)
+        if design_unit.unit_type is not 'package':
+            raise KeyError(package_name)
+
+        if codec_package_name is None:
+            codec_package_name = package_name + '_codecs'
+
+        if output_file_name is None:
+            codecs_path = join(self._parent._codecs_path, self._library_name)
+            output_file_name =  join(codecs_path, codec_package_name + splitext(design_unit.source_file.name)[1])
+
+        CodecGenerator.generate_codecs(design_unit, codec_package_name, used_packages, output_file_name)
+                                                    
+        self._parent.add_source_files(output_file_name, self._library_name)
 
     def entity(self, entity_name):
         library = self._parent._project._libraries[self._library_name]
