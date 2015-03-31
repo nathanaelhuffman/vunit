@@ -9,6 +9,7 @@ from os.path import abspath, join, dirname
 from vunit.ui import VUnit
 from common import has_modelsim
 
+
 @unittest.skipUnless(has_modelsim(), 'Requires modelsim')
 class TestStringOps(unittest.TestCase):
     def run_sim(self, vhdl_standard):
@@ -36,7 +37,3 @@ class TestStringOps(unittest.TestCase):
 
     def test_string_ops_vhdl_2008(self):
         self.run_sim('2008')
-
-
-
-    

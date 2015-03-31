@@ -14,6 +14,7 @@ sys.path.append(path_to_vunit)
 from itertools import product
 from vunit import VUnit
 
+
 def make_post_check(data_width, sign):
     """
     Return a check function to verify test case output
@@ -39,6 +40,7 @@ def make_post_check(data_width, sign):
         return True
 
     return post_check
+
 
 def generate_data_width_and_sign_tests(entity):
     """ 

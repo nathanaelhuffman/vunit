@@ -10,6 +10,7 @@ from common import has_modelsim, check_report
 from subprocess import check_call, call
 import sys
 
+
 @unittest.skipUnless(has_modelsim(), "Requires modelsim")
 class TestExampleProjects(unittest.TestCase):
     def setUp(self):

@@ -11,6 +11,7 @@ from vunit.ui import VUnit
 from common import has_modelsim
 from vunit.check_preprocessor import CheckPreprocessor
 
+
 @unittest.skipUnless(has_modelsim(), 'Requires modelsim')
 class TestCheck(unittest.TestCase):
     def run_sim(self, vhdl_standard):

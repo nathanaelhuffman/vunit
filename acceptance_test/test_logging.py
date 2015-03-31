@@ -10,6 +10,7 @@ from os.path import abspath, join, basename, dirname
 from vunit.ui import VUnit
 from common import has_modelsim
 
+
 @unittest.skipUnless(has_modelsim(), 'Requires modelsim')
 class TestLogging(unittest.TestCase):
     def run_sim(self, vhdl_standard):
