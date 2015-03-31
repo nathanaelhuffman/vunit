@@ -6,6 +6,7 @@
 
 import re
 
+
 class VHDLDesignFile:
     def __init__(self,
                  entities=None,
@@ -39,13 +40,15 @@ class VHDLDesignFile:
 
     _entity_re = re.compile('[a-zA-Z]\w*\s*\:\s*entity\s+(?P<libName>[a-zA-Z]\w*)\.(?P<entityName>[a-zA-Z]\w*)',
                             re.IGNORECASE)
+
     @classmethod
     def _find_instantiations(cls, code):
         matches = cls._entity_re.findall(code)
         return [(library_name, unit_name) for library_name, unit_name in matches]
 
     _component_re = re.compile('[a-zA-Z]\w*\s*\:\s*(?:component)?\s*(?:(?:[a-zA-Z]\w*)\.)?([a-zA-Z]\w*)\s*(?:generic|port) map\s*\([\s\w\=\>\,\.\)\(\+\-\'\"]*\);',
-                            re.IGNORECASE)
+                               re.IGNORECASE)
+
     @classmethod
     def _find_component_instantiations(cls, code):
         matches = cls._component_re.findall(code)
@@ -85,17 +88,18 @@ class VHDLDesignFile:
         libraries = {}
         for matches in cls._library_re.finditer(code):
             for library_name in get_ids(matches):
-                if not library_name in libraries:
+                if library_name not in libraries:
                     libraries[library_name] = set()
 
         for matches in cls._uses_re.finditer(code):
             for uses in get_ids(matches):
                 uses = uses.split(".")
                 library_name = uses[0]
-                if not library_name in libraries:
+                if library_name not in libraries:
                     libraries[library_name] = set()
                 libraries[library_name].add(tuple(uses[1:]))
         return libraries
+
 
 class VHDLPackageBody:
     def __init__(self, identifier):
@@ -118,6 +122,7 @@ class VHDLPackageBody:
         matches = cls._package_body_pattern.finditer(code)
         for match in matches:
             yield VHDLPackageBody(match.group('package'))
+
 
 class VHDLArchitecture:
     def __init__(self, identifier, entity):
@@ -145,6 +150,7 @@ class VHDLArchitecture:
             entity_id = arch.group('entity_id')
             yield VHDLArchitecture(identifier, entity_id)
 
+
 class VHDLPackage:
     def __init__(self, identifier, constant_declarations):
         self.identifier = identifier
@@ -159,6 +165,7 @@ class VHDLPackage:
         \s+                   # At least one whitespace
         is                    # is keyword
         """, re.MULTILINE | re.IGNORECASE | re.VERBOSE)
+
     @classmethod
     def find(cls, code):
         for package in cls._package_start_re.finditer(code):
@@ -188,7 +195,7 @@ class VHDLPackage:
         return cls(identifier, constant_declarations)
 
     @classmethod
-    def  _find_constant_declarations(cls, code, constant_declarations):
+    def _find_constant_declarations(cls, code, constant_declarations):
         re_flags = re.MULTILINE | re.IGNORECASE | re.VERBOSE
         constant_start = re.compile(r"""
             ^                             # Beginning of line
@@ -202,6 +209,7 @@ class VHDLPackage:
         for constant in constant_start.finditer(code):
             sub_code = code[constant.start():].strip().splitlines()[0].strip()
             constant_declarations.append(VHDLConstantDeclaration.parse(sub_code))
+
 
 class VHDLEntity:
     def __init__(self, identifier, generics=None, ports=None):
@@ -309,7 +317,7 @@ class VHDLEntity:
             match_semicolon = semicolon.match(code[match.end() + closing_pos:])
             if match_semicolon:
                 return cls._parse_generic_clause(
-                    code[match.start() : match.end() + closing_pos + match_semicolon.end()])
+                    code[match.start(): match.end() + closing_pos + match_semicolon.end()])
         return []
 
     @classmethod
@@ -332,12 +340,13 @@ class VHDLEntity:
             match_semicolon = semicolon.match(code[match.end() + closing_pos:])
             if match_semicolon:
                 return cls._parse_port_clause(
-                    code[match.start() : match.end() + closing_pos + match_semicolon.end()])
+                    code[match.start(): match.end() + closing_pos + match_semicolon.end()])
         return []
+
     @classmethod
     def _parse_generic_clause(cls, code):
         # The generic list is between the outer parenthesis
-        generic_list_string = code[code.find('(') + 1 : code.rfind(')')]
+        generic_list_string = code[code.find('(') + 1: code.rfind(')')]
 
         # Split the interface elements
         interface_elements = generic_list_string.split(';')
@@ -352,7 +361,7 @@ class VHDLEntity:
     @classmethod
     def _parse_port_clause(cls, code):
         # The port list is between the outer parenthesis
-        port_list_string = code[code.find('(') + 1 : code.rfind(')')]
+        port_list_string = code[code.find('(') + 1: code.rfind(')')]
 
         # Split the interface elements
         interface_elements = port_list_string.split(';')
@@ -380,7 +389,6 @@ class VHDLEntity:
 
         code = sindent + keyword + " " + self.identifier + " is\n"
 
-
         generic_codes = []
         for generic in self.generics:
             generic_code = sindent + 2*indent + str(generic)
@@ -404,7 +412,7 @@ class VHDLEntity:
         code += sindent + "end " + keyword + ";\n"
         return code
 
-    def to_instantiation_str(self, name, mapping = None, sindent="  ", indent="  "):
+    def to_instantiation_str(self, name, mapping=None, sindent="  ", indent="  "):
         """
         Convert entity to an instantiation string
 
@@ -454,6 +462,7 @@ class VHDLEntity:
             code += sindent + "signal " + str(port.without_mode()) + ";\n"
         return code
 
+
 class VHDLContext:
     def __init__(self, identifier):
         self.identifier = identifier
@@ -473,6 +482,7 @@ class VHDLContext:
         for context in cls._context_start_re.finditer(code):
             identifier = context.group('id')
             yield VHDLContext(identifier=identifier)
+
 
 class VHDLSubtypeIndication:
     def __init__(self, code, type_mark, constraint, array_type):
@@ -505,6 +515,7 @@ class VHDLSubtypeIndication:
     def __str__(self):
         return self.code
 
+
 class VHDLConstantDeclaration:
     def __init__(self, identifier, subtype_indication, expression):
         self.identifier = identifier
@@ -533,10 +544,11 @@ class VHDLConstantDeclaration:
         subtype_indication = VHDLSubtypeIndication.parse(sub_code[:expression_start].strip())
 
         # Extract expression
-        sub_code = sub_code[expression_start + 2 :]
+        sub_code = sub_code[expression_start + 2:]
         expression_end = sub_code.find(';')
         expression = sub_code[: expression_end].strip()
         return cls(identifier, subtype_indication, expression)
+
 
 class VHDLInterfaceElement:
     def __init__(self, identifier, subtype_indication, mode=None, init_value=None):
@@ -584,14 +596,9 @@ class VHDLInterfaceElement:
 
         return cls(identifier, subtype_indication, mode, init_value)
 
-
-    @classmethod
-    def _is_mode(self, code):
-        if (code == 'in') or \
-            (code == 'out') or \
-            (code == 'inout') or \
-            (code == 'buffer') or \
-            (code == 'linkage'):
+    @staticmethod
+    def _is_mode(code):
+        if (code == 'in') or (code == 'out') or (code == 'inout') or (code == 'buffer') or (code == 'linkage'):
             return True
         else:
             return False
@@ -609,6 +616,7 @@ class VHDLInterfaceElement:
 
         return code
 
+
 def find_closing_delimiter(start, end, code):
     delimiter_pattern = start + '|' + end
     start = start.replace('\\', '')
@@ -617,13 +625,14 @@ def find_closing_delimiter(start, end, code):
     count = 1
     for delimiter in delimiters.finditer(code):
         if delimiter.group() == start:
-            count = count + 1;
+            count += 1
         else:
-            count = count - 1;
+            count -= 1
 
         if count == 0:
             return delimiter.end()
     raise ValueError('Failed to find closing delimiter to ' + start + ' in ' + code + '.')
+
 
 def remove_comments(code):
     new_code = ''

@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
 
+
 class TestBench:
     def __init__(self,
                  simulator_if,
@@ -35,10 +36,10 @@ class TestBench:
             generics.update(extra_generics)
 
         return self._simulator_if.simulate(output_path,
-                                             self._library_name,
-                                             self._entity_name,
-                                             self._architecture_name,
-                                             generics,
-                                             fail_on_warning=self._fail_on_warning,
-                                             pli=self._pli,
-                                             load_only=self._elaborate_only)
+                                           self._library_name,
+                                           self._entity_name,
+                                           self._architecture_name,
+                                           generics,
+                                           fail_on_warning=self._fail_on_warning,
+                                           pli=self._pli,
+                                           load_only=self._elaborate_only)

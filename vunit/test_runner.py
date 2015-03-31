@@ -16,6 +16,7 @@ from vunit.test_report import TestResult, PASSED, FAILED
 
 import sys
 
+
 class TestRunner:
     def __init__(self, report, output_path, verbose=False):
         self._report = report
@@ -82,19 +83,22 @@ class TestRunner:
         runtime = ostools.get_time() - start
         add_and_print_results(results, runtime)
 
-    def _fail_suite(self, test_suite):
-        " Return failure for all tests in suite "
+    @staticmethod
+    def _fail_suite(test_suite):
+        """ Return failure for all tests in suite """
         results = {}
         for test_name in test_suite.test_cases:
             results[test_name] = FAILED
         return results
 
-    def _print_test_case_banner(self, test_case_name):
-        " Print a banner before running each testcase "
+    @staticmethod
+    def _print_test_case_banner(test_case_name):
+        """ Print a banner before running each testcase """
         print("running %s" % test_case_name)
 
-    def _encode_path(self, path):
-        " @TODO what if two tests named 'Test 1' and 'Test_1' ? "
+    @staticmethod
+    def _encode_path(path):
+        """ @TODO what if two tests named 'Test 1' and 'Test_1' ? """
         return path.replace(" ", "_")
 
     def run(self, test_suites):
@@ -110,6 +114,7 @@ class TestRunner:
 
         for test_suite in test_suites:
             self._run_test_suite(test_suite, num_tests)
+
 
 class TeeToFile:
     def __init__(self, files):

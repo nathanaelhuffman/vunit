@@ -9,6 +9,7 @@ from os.path import join
 import vunit.ostools as ostools
 from vunit.test_report import (PASSED, SKIPPED, FAILED)
 
+
 class IndependentSimTestCase:
     def __init__(self, name, test_case, test_bench, has_runner_cfg=False, post_check_function=None):
         self._name = name
@@ -26,9 +27,9 @@ class IndependentSimTestCase:
 
         if self._has_runner_cfg:
             runner_cfg = {
-                "enabled_test_cases" : self._test_case,
-                "output path" : output_path.replace("\\", "/") + "/",
-                "active python runner" : True,
+                "enabled_test_cases": self._test_case,
+                "output path": output_path.replace("\\", "/") + "/",
+                "active python runner": True,
             }
 
             generics["runner_cfg"] = encode_dict(runner_cfg)
@@ -73,13 +74,13 @@ class SameSimTestSuite:
 
     def run(self, output_path):
         runner_cfg = {
-            "enabled_test_cases" : ",".join(self._test_cases),
-            "output path" : output_path.replace("\\", "/") + "/",
-            "active python runner" : True,
+            "enabled_test_cases": ",".join(self._test_cases),
+            "output path": output_path.replace("\\", "/") + "/",
+            "active python runner": True,
         }
 
         generics = {
-            "runner_cfg" : encode_dict(runner_cfg),
+            "runner_cfg": encode_dict(runner_cfg),
         }
 
         passed = self._test_bench.run(output_path, generics)
@@ -128,9 +129,10 @@ class SameSimTestSuite:
             retval[self._full_name(test_name)] = PASSED
 
         for test_name in self._test_cases:
-            if not test_name in test_starts:
+            if test_name not in test_starts:
                 retval[self._full_name(test_name)] = SKIPPED
         return retval
+
 
 def encode_dict(dictionary):
     """

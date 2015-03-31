@@ -4,5 +4,6 @@
 #
 # Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
 
+
 class CompileError(Exception):
     pass

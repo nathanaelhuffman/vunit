@@ -17,6 +17,7 @@ from vunit.vhdl_parser import VHDLDesignFile
 import vunit.ostools as ostools
 import traceback
 
+
 class Library:
     def __init__(self, name, directory, is_external=False):
         self.name = name
@@ -36,12 +37,12 @@ class Library:
                 self.primary_design_units[design_unit.name] = design_unit
 
             if design_unit.unit_type == 'entity':
-                if not design_unit.name in self._architecture_names:
+                if design_unit.name not in self._architecture_names:
                     self._architecture_names[design_unit.name] = {}
                 self._entities[design_unit.name] = design_unit
 
             if design_unit.unit_type == 'architecture':
-                if not design_unit.primary_design_unit in self._architecture_names:
+                if design_unit.primary_design_unit not in self._architecture_names:
                     self._architecture_names[design_unit.primary_design_unit] = {}
 
                 file_name = design_unit.source_file.name
@@ -65,6 +66,7 @@ class Library:
 
     def __hash__(self):
         return hash(self.name)
+
 
 class SourceFile:
     def __init__(self, name, library, file_type='vhdl'):
@@ -106,13 +108,13 @@ class SourceFile:
         # Find dependencies introduced by the use clause
         result = []
         for library_name, uses in design_file.libraries.items():
-            if library_name == "work": # Work means same library as current file
+            if library_name == "work":  # Work means same library as current file
                 library_name = self.library.name
             for use in uses:
                 result.append((library_name, use[0]))
 
         for library_name, entity in design_file.instantiations:
-            if library_name == "work": # Work means same library as current file
+            if library_name == "work":  # Work means same library as current file
                 library_name = self.library.name
             result.append((library_name, entity))
                         
@@ -150,6 +152,7 @@ class SourceFile:
     def md5(self):
         return self._md5
 
+
 class Entity:
     def __init__(self, name, source_file, generic_names=None):
         self.name = name
@@ -161,6 +164,7 @@ class Entity:
         self.source_file = source_file
         self.unit_type = 'entity'
         self.is_primary = True
+
 
 class DesignUnit:
     def __init__(self, name, source_file, unit_type, is_primary=True, primary_design_unit=None):
@@ -180,14 +184,15 @@ class Project:
         self._source_files_in_order = []
         self._depend_on_components = depend_on_components
 
-    def _validate_library_name(self, library_name):
+    @staticmethod
+    def _validate_library_name(library_name):
         if library_name == "work":
             logger.error("Cannot add library named work. work is a reference to the current library. http://www.sigasi.com/content/work-not-vhdl-library")
             raise RuntimeError("Illegal library name 'work'")
 
     def add_library(self, logical_name, directory, allow_replacement=False, is_external=False):
         self._validate_library_name(logical_name)
-        if not logical_name in self._libraries:
+        if logical_name not in self._libraries:
             library = Library(logical_name, directory, is_external=is_external)
             self._libraries[logical_name] = library
             logger.info('Adding library %s with path %s', logical_name, directory)
@@ -206,7 +211,8 @@ class Project:
         self._source_files[file_name] = source_file
         self._source_files_in_order.append(file_name)
 
-    def _find_primary_secondary_design_unit_dependencies(self, source_file):
+    @staticmethod
+    def _find_primary_secondary_design_unit_dependencies(source_file):
         library = source_file.library
 
         for unit in source_file.design_units:
@@ -226,7 +232,7 @@ class Project:
             try:
                 library = self._libraries[library_name]
             except KeyError:
-                if not library_name in ("ieee", "std"):
+                if library_name not in ("ieee", "std"):
                     logger.warning("failed to find library '%s'", library_name)
                 continue
 
@@ -255,7 +261,6 @@ class Project:
             
             if not found_component_entity:
                 logger.debug("failed to find a matching entity for component '%s' ", unit_name)
-            
 
     def _create_dependency_graph(self):
         def add_dependency(start, end):
@@ -319,7 +324,7 @@ class Project:
 
         if not ostools.file_exists(md5_file_name):
             logger.debug("%s has no vunit_hash file at %s and must be recompiled",
-                                  source_file.name, md5_file_name)
+                         source_file.name, md5_file_name)
             return True
 
         old_md5 = ostools.read_file(md5_file_name)

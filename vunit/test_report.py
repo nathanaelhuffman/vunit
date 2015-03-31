@@ -8,6 +8,7 @@ from vunit.color_printer import ColorPrinter
 from xml.etree import ElementTree
 from sys import version_info
 
+
 class TestReport:
     """
     Collect reports from running testcases
@@ -54,7 +55,6 @@ class TestReport:
                              len(failed),
                              total_tests,
                              result.name))
-
 
     def all_ok(self):
         """
@@ -138,6 +138,7 @@ class TestReport:
             xml = ElementTree.tostring(root, encoding="utf-8")
         return xml
 
+
 class TestStatus:
     def __init__(self, name):
         self._name = name
@@ -152,6 +153,7 @@ class TestStatus:
 PASSED = TestStatus("passed")
 SKIPPED = TestStatus("skipped")
 FAILED = TestStatus("failed")
+
 
 class TestResult:
     """

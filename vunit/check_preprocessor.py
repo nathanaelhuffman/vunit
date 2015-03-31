@@ -5,7 +5,8 @@
 # Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
 
 from re import compile, MULTILINE
-        
+
+
 class CheckPreprocessor:
     def __init__(self):
         self._find_operators = compile(r'\?/=|\?<=|\?>=|\?<|\?>|\?=|/=|<=|>=|<|>|=', MULTILINE)
@@ -60,8 +61,8 @@ class CheckPreprocessor:
             index += 1
         
         if not relation:
-            raise SyntaxError('Failed to find relation in %s' % code[check.start('call') : check.end('parameters'
-                                                                                                     ) + index])
+            raise SyntaxError('Failed to find relation in %s' % code[check.start('call'): check.end('parameters'
+                                                                                                    ) + index])
                                                                                                              
         return relation, index - 1
 
@@ -158,7 +159,8 @@ class CheckPreprocessor:
             relation = Relation(left, o.group(), right)
                 
         return relation
-    
+
+
 class Token:
     NORMAL = 0
     STRING = 1
@@ -170,18 +172,22 @@ class Token:
         self.value = value
         self.type = None
         self.level = None
+
     @property
     def is_comment(self):
         return self.type in [self.LINE_COMMENT, self.BLOCK_COMMENT]
+
     @property
     def is_quote(self):
         return self.type in [self.CHARACTER_LITERAL, self.STRING]
-    
+
+
 class Relation:
     def __init__(self, left, op, right):
         self._left = left
         self._op = op
         self._right = right
+
     def make_error_msg(self):
         return '"Relation %s %s %s failed! Left is " & to_string(%s) & ". Right is " & to_string(%s) & "."' % (self._left.replace('"', '""'),
                                                                                                                self._op,

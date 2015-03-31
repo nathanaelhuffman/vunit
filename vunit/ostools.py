@@ -22,6 +22,7 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 
+
 class Process:
     """
     A simple process interface
@@ -46,9 +47,8 @@ class Process:
         self._reader.start()
         self.output = ""
 
-
     def write(self, *args, **kwargs):
-        " Write to stdin "
+        """ Write to stdin """
         if not self._process.stdin.closed:
             self._process.stdin.write(*args, **kwargs)
         
@@ -106,12 +106,13 @@ class Process:
     def __del__(self):
         self.terminate()
 
+
 class AsynchronousFileReader(threading.Thread):
-    '''
+    """
     Helper class to implement asynchronous reading of a file
     in a separate thread. Pushes read lines on a queue to
     be consumed in another thread.
-    '''
+    """
  
     def __init__(self, fd, queue):
         threading.Thread.__init__(self)
@@ -119,20 +120,22 @@ class AsynchronousFileReader(threading.Thread):
         self._queue = queue
  
     def run(self):
-        '''The body of the tread: read lines and put them on the queue.'''
+        """The body of the tread: read lines and put them on the queue."""
         for line in iter(self._fd.readline, ''):
             self._queue.put(line[:-1])
         self._queue.put(None)
  
     def eof(self):
-        '''Check whether there is no more content to expect.'''
+        """Check whether there is no more content to expect."""
         return not self.is_alive() and self._queue.empty()    
+
 
 def read_file(file_name):
     """ To stub during testing """
     with open(file_name, "r") as file_to_read:
         data = file_to_read.read()
     return data
+
 
 def write_file(file_name, contents):
     """ To stub during testing """
@@ -147,13 +150,16 @@ def write_file(file_name, contents):
     with open(file_name, "w") as file_to_write:
         file_to_write.write(contents)
 
+
 def file_exists(file_name):
     """ To stub during testing """
     return exists(file_name)
 
+
 def get_modification_time(file_name):
     """ To stub during testing """
     return getmtime(file_name)
+
 
 def get_time():
     """ To stub during testing """

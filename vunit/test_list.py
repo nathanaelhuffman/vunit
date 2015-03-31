@@ -6,6 +6,7 @@
 
 from vunit.test_report import (PASSED, FAILED)
 
+
 class TestList:
     def __init__(self):
         self._test_suites = []
@@ -29,6 +30,7 @@ class TestList:
 
     def __len__(self):
         return len(self._test_suites)
+
 
 class TestSuiteWrapper:
     def __init__(self, test_case):

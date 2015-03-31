@@ -31,6 +31,7 @@ from vunit.check_preprocessor import CheckPreprocessor
 import logging
 logger = logging.getLogger(__name__)
 
+
 class VUnit:
     """
     The public interface of VUnit
@@ -89,7 +90,7 @@ class VUnit:
         if len(simulators) == 0:
             raise RuntimeError("No simulator detected")
         elif preferred_simulator is not None:
-            if not preferred_simulator in simulators:
+            if preferred_simulator not in simulators:
                 raise RuntimeError("%s: %r is not available. Available simulators are %r"
                                    % (description, preferred_simulator, simulators))
 
@@ -102,36 +103,36 @@ class VUnit:
                             help='Tests to run')
 
         parser.add_argument('-l', '--list', action='store_true',
-                           default=False,
-                           help='Only list all test cases')
+                            default=False,
+                            help='Only list all test cases')
 
         parser.add_argument('--compile', action='store_true',
-                           default=False,
-                           help='Only compile project')
+                            default=False,
+                            help='Only compile project')
 
         parser.add_argument('--clean', action='store_true',
-                           default=False,
-                           help='Remove output path first')
+                            default=False,
+                            help='Remove output path first')
 
         parser.add_argument('-o', '--output-path',
-                           default=join(abspath(getcwd()), "vunit_out"),
-                           help='Output path for compilation and simulation artifacts')
+                            default=join(abspath(getcwd()), "vunit_out"),
+                            help='Output path for compilation and simulation artifacts')
 
         parser.add_argument('-x', '--xunit-xml',
-                           default=None,
-                           help='Xunit test report .xml file')
+                            default=None,
+                            help='Xunit test report .xml file')
 
         parser.add_argument('-v', '--verbose', action="store_true",
-                           default=False,
-                           help='Print test output immediately and not only when failure')
+                            default=False,
+                            help='Print test output immediately and not only when failure')
 
         parser.add_argument('--no-color', action='store_true',
-                           default=False,
-                           help='Do not color output')
+                            default=False,
+                            help='Do not color output')
 
         parser.add_argument('--gui', action='store_true',
-                           default=False,
-                           help='Open test case(s) in simulator gui')
+                            default=False,
+                            help='Open test case(s) in simulator gui')
 
         parser.add_argument('--log-level',
                             default="warning",
@@ -176,7 +177,7 @@ class VUnit:
         level = getattr(logging, log_level.upper())
         logging.basicConfig(filename=None, format='%(levelname)7s - %(message)s', level=level)
 
-        self._test_filter = test_filter if test_filter is not None else lambda name : True
+        self._test_filter = test_filter if test_filter is not None else lambda name: True
         self._list_only = list_only
         self._compile_only = compile_only
         self._elaborate_only = elaborate_only
@@ -220,16 +221,20 @@ class VUnit:
         """
         Get reference to library
         """
-        if not library_name in self._project._libraries:
+        if library_name not in self._project._libraries:
             raise KeyError(library_name)
         return LibraryFacade(library_name, self)
 
     def set_generic(self, name, value):
-        " Globally set generic "
+        """
+        Globally set generic
+        """
         self._configuration.set_generic(name, value, scope="")
 
     def set_pli(self, value):
-        " Globally set pli "
+        """
+        Globally set pli
+        """
         self._configuration.set_generic(value, scope="")
 
     def add_source_files(self, pattern, library_name, preprocessors=None):
@@ -248,7 +253,7 @@ class VUnit:
 
         if preprocessors is None:
             preprocessors = [self._location_preprocessor, self._check_preprocessor]
-            preprocessors = [p for p in preprocessors if not p is None]
+            preprocessors = [p for p in preprocessors if p is not None]
             preprocessors = self._external_preprocessors + preprocessors
 
         if len(preprocessors) == 0:
@@ -281,7 +286,7 @@ class VUnit:
         Enable location preprocessing, must be called before adding any files
         """
         p = LocationPreprocessor()
-        if not additional_subprograms is None:
+        if additional_subprograms is not None:
             for subprogram in additional_subprograms:
                 p.add_subprogram(subprogram)
         self._location_preprocessor = p
@@ -394,7 +399,7 @@ class VUnit:
     def _post_process(self, report):
         report.print_str()
 
-        if not self._xunit_xml is None:
+        if self._xunit_xml is not None:
             xml = report.to_junit_xml_str()
             ostools.write_file(self._xunit_xml, xml)
 
@@ -418,14 +423,14 @@ class VUnit:
                   join("run", "src", "run_types.vhd"),
                   join("run", "src", "run_base_api.vhd")]
 
-        files +=  [join("logging", "src", "log_api.vhd"),
-                   join("logging", "src", "log_formatting.vhd"),
-                   join("logging", "src", "log.vhd"),
-                   join("logging", "src", "log_types.vhd")]
+        files += [join("logging", "src", "log_api.vhd"),
+                  join("logging", "src", "log_formatting.vhd"),
+                  join("logging", "src", "log.vhd"),
+                  join("logging", "src", "log_types.vhd")]
 
-        files +=  [join("dictionary", "src", "dictionary.vhd")]
+        files += [join("dictionary", "src", "dictionary.vhd")]
 
-        files +=  [join("path", "src", "path.vhd")]
+        files += [join("path", "src", "path.vhd")]
 
         if self._vhdl_standard == '2008':
             files += [join("run", "src", "stop_body_2008.vhd")]
@@ -480,7 +485,7 @@ class VUnit:
         library.add_source_files(join(self._builtin_vhdl_path, "array", "src", "array_pkg.vhd"))
 
     def add_osvvm(self, library_name="osvvm"):
-        if not library_name in self._project._libraries:
+        if library_name not in self._project._libraries:
             library = self.add_library(library_name)
         else:
             library = self.library(library_name)
@@ -488,6 +493,7 @@ class VUnit:
         for f in glob(join(self._builtin_vhdl_path, "osvvm", "*.vhd")):
             if basename(f) != 'AlertLogPkg_body_BVUL.vhd':
                 library.add_source_files(f, preprocessors=[])
+
 
 class LibraryFacade:
     """
@@ -498,12 +504,12 @@ class LibraryFacade:
         self._parent = parent
 
     def set_generic(self, name, value):
-        " Set generic within library "
+        """ Set generic within library """
         self._parent._configuration.set_generic(
             name, value, scope=self._library_name)
 
     def set_pli(self, value):
-        " Set pli within library "
+        """ Set pli within library """
         self._parent._configuration.set_pli(value, scope=self._library_name)
 
     def add_source_files(self, pattern, preprocessors=None):
@@ -511,11 +517,12 @@ class LibraryFacade:
 
     def entity(self, entity_name):
         library = self._parent._project._libraries[self._library_name]
-        if not entity_name in library._entities:
+        if entity_name not in library._entities:
             raise KeyError(entity_name)
 
         return EntityFacade("%s.%s" % (self._library_name, entity_name),
                             self._parent._configuration)
+
 
 class EntityFacade:
     """
@@ -526,11 +533,11 @@ class EntityFacade:
         self._config = config
 
     def set_generic(self, name, value):
-        " Set generic within entity "
+        """ Set generic within entity """
         self._config.set_generic(name, value, scope=self._name)
 
     def set_pli(self, value):
-        " Set pli within entity "
+        """ Set pli within entity """
         self._config.set_pli(value, scope=self._name)
 
     def add_config(self, name, generics, post_check=None):
@@ -538,6 +545,7 @@ class EntityFacade:
                                 name=name,
                                 generics=generics,
                                 post_check=post_check)
+
 
 def file_type_of(file_name):
     _, ext = splitext(file_name)

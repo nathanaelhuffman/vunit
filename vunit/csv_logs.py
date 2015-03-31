@@ -8,6 +8,7 @@ from csv import Sniffer, DictReader, DictWriter
 from glob import glob
 from os.path import abspath
 
+
 class CsvLogs:
     def __init__(self, pattern='', field_names=None):
         self._field_names = ['#', 'Time', 'Level', 'File', 'Line', 'Source', 'Message'] if not field_names else field_names

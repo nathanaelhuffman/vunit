@@ -6,6 +6,7 @@
 #
 # Copyright (c) 2014, Lars Asplund lars.anders.asplund@gmail.com
 
+
 class DependencyGraph:
     def __init__(self):
         self._forward = {}
@@ -61,7 +62,7 @@ class DependencyGraph:
             next_leafs = set()
             for node in leafs:
                 affected.add(node)
-                if not node in self._forward:
+                if node not in self._forward:
                     continue
 
                 for next_node in self._forward[node]:
@@ -72,4 +73,3 @@ class DependencyGraph:
 
     def get_dependencies(self, node):
         return self._backward.get(node, [])
-
