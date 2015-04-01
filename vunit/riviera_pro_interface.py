@@ -3,41 +3,45 @@
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 # Copyright (c) 2014-2015, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2015, Oystein Svendsen, Norbit ODM AS, osv@norbit.com
 
 from __future__ import print_function
 
-from vunit.ostools import Process, write_file, file_exists, read_file
+from vunit.ostools import Process, write_file, file_exists
 import re
 from os.path import join, dirname, abspath, isfile, normpath
 import os
-from distutils.spawn import find_executable
+from distutils.spawn  import find_executable
 
 from vunit.exceptions import CompileError
+import logging
+from bb.data import path
+from __builtin__ import classmethod
+logger = logging.getLogger(__name__)
 
-
-class ModelSimInterface:
-
-    name = "modelsim"
+class RivieraProInterface:
+    name = "riviera-pro"
     
     @staticmethod
     def is_available():
         """
-        Return True if Modelsim is installed
+        Return path to executables, if Riviera-Pro is installed
         """
-        p = find_executable("wlf2log")
+        p = find_executable("vsimsa")
         if p:
-            return dirname(p)
+            return os.path.dirname(p)
         else:
             return None
-        
-    def __init__(self, modelsim_ini="modelsim.ini", persistent=False, gui=False, path=None):
+            
+    def __init__(self, library_cfg="library.cfg", persistent=False, gui=False, path=None ):
+        self._library_cfg = library_cfg
         
         if type(path)is str:
             self.vsim = normpath(path + '/' + 'vsim')
             self.vlib = normpath(path + '/' + 'vlib')
             self.vmap = normpath(path + '/' + 'vmap')
             self.vcom = normpath(path + '/' + 'vcom')
-            self.vlog = normpath(path + '/' + 'vlog')          
+            self.vlog = normpath(path + '/' + 'vlog')             
         else:
             self.vsim = 'vsim'
             self.vlib = 'vlib'
@@ -45,44 +49,38 @@ class ModelSimInterface:
             self.vcom = 'vcom'
             self.vlog = 'vlog'
 
-        self._modelsim_ini = modelsim_ini
-
-        # Workarround for Microsemi 10.3a which does not
-        # respect MODELSIM environment variable when set within .do script
-        # Microsemi bug reference id: dvt64978
-        os.environ["MODELSIM"] = self._modelsim_ini
-
-        self._create_modelsim_ini()
-        self._vsim_process = None
+        self._create_library_cfg()
+        self._asim_process = None
         self._gui = gui
-        self._path = path
+        
         assert not (persistent and gui)
 
         if persistent:
-            self._create_vsim_process()
+            self._create_asim_process()
 
     def _teardown(self):
-        if self._vsim_process is not None:
+        if self._asim_process is not None:
             self._send_command("quit")
-            self._vsim_process.terminate()
-            self._vsim_process = None
+            self._asim_process.terminate()
+            self._asim_process = None
+
 
     def __del__(self):
         self._teardown()
 
-    def _create_vsim_process(self):
+    def _create_asim_process(self):
         """
-        Create the vsim process
+        Create the asim process
         """
+                   
+        self._asim_process = Process([self.vsim,
+                                      "-l", join(dirname(self._library_cfg), "transcript")])
+        self._asim_process.write("#VUNIT_RETURN\n")
+        self._asim_process.consume_output(OutputConsumer(silent=True))
 
-        self._vsim_process = Process([self.vsim, "-c",
-                                      "-l", join(dirname(self._modelsim_ini), "transcript")])
-        self._vsim_process.write("#VUNIT_RETURN\n")
-        self._vsim_process.consume_output(OutputConsumer(silent=True))
-
-    def _create_modelsim_ini(self):
-        if not file_exists(self._modelsim_ini):
-            proc = Process(args=[self.vmap, '-c'], cwd=dirname(self._modelsim_ini))
+    def _create_library_cfg(self):
+        if not file_exists(self._library_cfg):
+            proc = Process(args=[self.vmap], cwd=dirname(self._library_cfg))
             proc.consume_output(callback=None)
 
     def compile_project(self, project, vhdl_standard):
@@ -104,8 +102,9 @@ class ModelSimInterface:
             project.update(source_file)
 
     def compile_vhdl_file(self, source_file_name, library_name, vhdl_standard):
+        
         try:
-            proc = Process([self.vcom, '-quiet', '-modelsimini', self._modelsim_ini,
+            proc = Process([self.vcom, '-quiet', '-O3',
                             '-' + vhdl_standard, '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
@@ -113,66 +112,65 @@ class ModelSimInterface:
         return True
 
     def compile_verilog_file(self, source_file_name, library_name):
+       
         try:
-            proc = Process([self.vlog, '-sv', '-quiet', '-modelsimini', self._modelsim_ini,
+            proc = Process([self.vlog, '-quiet', self._library_cfg,
                             '-work', library_name, source_file_name])
             proc.consume_output()
         except Process.NonZeroExitCode:
             return False
         return True
 
-    _vmap_pattern = re.compile('maps to directory (?P<dir>.*?)\.')
 
+    
+    _vmap_pattern = re.compile('(?P<lib>.*?) = (?P<path>.+)')
     def create_library(self, library_name, path):
+        logger.debug('create_library %s %s', library_name, path)
 
-        if not file_exists(dirname(path)):
-            os.makedirs(dirname(path))
+        #if not file_exists(dirname(path)):
+        #    os.makedirs(dirname(path))
+        logging.debug(os.getcwd())
 
-        if not file_exists(path):
-            proc = Process([self.vlib, '-unix', path])
-            proc.consume_output(callback=None)
-
+        #if not file_exists(path + '/' + library_name +'.lib'):
+        proc = Process([self.vlib, path])
+        proc.consume_output(callback=None)
+        
         try:
-            proc = Process([self.vmap, '-modelsimini', self._modelsim_ini, library_name])
+            proc = Process([self.vmap, library_name])
             proc.consume_output(callback=None)
         except Process.NonZeroExitCode:
             pass
 
         match = self._vmap_pattern.search(proc.output)
+        
         if match:
-            do_vmap = not file_exists(match.group('dir'))
-        else:
             do_vmap = False
-
-        if 'No mapping for library' in proc.output:
+        else:
+            do_vmap = True
+            
+        if 'AMAP: Error: Logical library does not exist' in proc.output:
             do_vmap = True
 
         if do_vmap:
-            proc = Process([self.vmap, '-modelsimini', self._modelsim_ini, library_name, path])
+            proc = Process([self.vmap, library_name, path + "/" + library_name + ".lib"])
             proc.consume_output(callback=None)
 
     def _create_load_function(self, library_name, entity_name, architecture_name, generics, pli, output_path):
         set_generic_str = "".join(('    set vunit_generic_%s {%s}\n' % (name, value) for name, value in generics.items()))
         set_generic_name_str = " ".join(('-g%s="${vunit_generic_%s}"' % (name, name) for name in generics))
-        pli_str = " ".join("-pli {%s}" % fix_path(name) for name in pli)
+        #pli_str = " ".join("-pli {%s}" %  fix_path(name) for name in pli)
         if architecture_name is None:
             architecture_suffix = ""
         else:
-            architecture_suffix = "(%s)" % architecture_name
+            architecture_suffix = "%s" % architecture_name
 
         tcl = """
 proc vunit_load {{}} {{
     {set_generic_str}
 
-    # Workaround -modelsimini flag not respected in some versions of modelsim
-    # however, Microsemi 10.3a corrupts the enviromnent variable (see dvt64978)
-    if {{[string first "Microsemi vsim 10.3a" [vsimVersionString]] eq -1}} {{
-        global env
-        set env(MODELSIM) "{modelsimini}"
-    }}
-    vsim -wlf "{wlf_file_name}" -quiet -t ps {pli_str} {set_generic_name_str} {library_name}.{entity_name}{architecture_suffix}
-    set no_finished_signal [catch {{examine -internal {{/vunit_finished}}}}]
-    set no_test_runner_exit [catch {{examine -internal {{/run_base_pkg/runner.exit_without_errors}}}}]
+    asim -quiet -t 0 {set_generic_name_str} {library_name}.{entity_name} {library_name}.{architecture_suffix}
+    set no_finished_signal [catch {{examine {{vunit_finished}}}}]
+    set no_test_runner_exit [catch {{examine {{/vunit_lib.run_base_pkg/runner.exit_without_errors}}}}]
 
     if {{${{no_finished_signal}} && ${{no_test_runner_exit}}}}  {{
         echo {{Error: Found none of either simulation shutdown mechanisms}}
@@ -182,20 +180,19 @@ proc vunit_load {{}} {{
     }}
     return 0
 }}
-""".format(modelsimini=fix_path(self._modelsim_ini),
-           pli_str=pli_str,
+""".format(rivieraini=fix_path(self._library_cfg),           
            set_generic_str=set_generic_str,
            set_generic_name_str=set_generic_name_str,
            library_name=library_name,
            entity_name=entity_name,
            architecture_suffix=architecture_suffix,
-           wlf_file_name=fix_path(join(output_path, "vsim.wlf")))
+           wlf_file_name=fix_path(join(output_path, "asim.wlf")))
 
         return tcl
 
-    @staticmethod
-    def _create_run_function(fail_on_warning=False):
+    def _create_run_function(self, fail_on_warning=False):
         return """
+        
 proc vunit_run {} {
     global BreakOnAssertion
 
@@ -207,36 +204,41 @@ proc vunit_run {} {
     }
     onbreak {on_break}
 
-    set no_finished_signal [catch {examine -internal {/vunit_finished}}]
-
-    if {${no_finished_signal}} {
-        set exit_boolean {/run_base_pkg/runner.exit_without_errors}
+    set no_finished_signal [catch {examine {vunit_finished}}]
+    
+    set aldec_no_finished_signal [catch {exa {runner.exit_without_errors}}]
+    
+    if {${aldec_no_finished_signal} == 0} {
+        set exit_boolean {runner.exit_without_errors}
+    } elseif {${no_finished_signal}} {
+        set exit_boolean {/vunit_lib.run_base_pkg/runner.exit_without_errors}
     } {
-        set exit_boolean {/vunit_finished}
+        set exit_boolean {vunit_finished}
     }
 
-    when -fast "${exit_boolean} = TRUE" {
+    when "${exit_boolean} = true" {
         echo "Finished"
         stop
         resume
     }
 
     run -all
-    set failed [expr [examine -internal ${exit_boolean}]!=TRUE]
+    set failed [expr [examine ${exit_boolean}]!=true]
     if {$failed} {
         catch {
             # tb command can fail when error comes from pli
             echo
             echo "Stack trace result from 'tb' command"
-            echo [tb]
+            echo [null tb]
             echo
             echo "Surrounding code from 'see' command"
-            echo [see]
+            echo [null see]
         }
     }
     return $failed
 }
 """ % (1 if fail_on_warning else 2)
+
 
     def _create_common_script(self, library_name, entity_name, architecture_name, generics, pli, fail_on_warning, output_path):
         """
@@ -253,32 +255,30 @@ proc vunit_help {} {
         tcl += self._create_run_function(fail_on_warning)
         return tcl
 
-    @staticmethod
-    def _create_batch_script(common_file_name, load_only=False):
+    def _create_batch_script(self, common_file_name, load_only=False):
         """
         Create tcl script to run in batch mode
         """
         batch_do = "do " + fix_path(common_file_name) + "\n"
-        batch_do += "quietly set failed [vunit_load]\n"
-        batch_do += "if {$failed} {quit -f -code 1}\n"
+        batch_do += "null [set failed [vunit_load]]\n"
+        batch_do += "if {$failed} {quit -force -code 1}\n"
         if not load_only:
-            batch_do += "quietly set failed [vunit_run]\n"
-            batch_do += "if {$failed} {quit -f -code 1}\n"
-        batch_do += "quit -f -code 0\n"
+            batch_do += "null [set failed [vunit_run]]\n"
+            batch_do += "if {$failed} {quit -force -code 1}\n"
+        batch_do += "exit\n"
         return batch_do
 
-    @staticmethod
-    def _create_user_script(common_file_name):
+    def _create_user_script(self, common_file_name):
         tcl = "do %s\n" % fix_path(common_file_name)
         tcl += "vunit_help\n"
         return tcl
 
     def _run_batch_file(self, batch_file_name, gui=False):
         try:
-            args = [self.vsim, '-quiet',
+            args = [self.vsim,
                     "-l", join(dirname(batch_file_name), "transcript"),
                     '-do', "do %s" % fix_path(batch_file_name)]
-
+            
             if gui:
                 args.append('-gui')
             else:
@@ -291,17 +291,17 @@ proc vunit_help {} {
         return True
 
     def _send_command(self, cmd):
-        self._vsim_process.write("%s\n" % cmd)
-        self._vsim_process._next()
-        self._vsim_process.write("#VUNIT_RETURN\n")
-        self._vsim_process.consume_output(OutputConsumer())
+        self._asim_process.write("%s\n" % cmd)
+        self._asim_process._next()
+        self._asim_process.write("#VUNIT_RETURN\n")
+        self._asim_process.consume_output(OutputConsumer())
 
     def _read_var(self, varname):
-        self._vsim_process.write("echo $%s #VUNIT_READVAR\n" % varname)
-        self._vsim_process._next()
-        self._vsim_process.write("#VUNIT_RETURN\n")
+        self._asim_process.write("echo $%s #VUNIT_READVAR\n" % varname)
+        self._asim_process._next()
+        self._asim_process.write("#VUNIT_RETURN\n")
         consumer = OutputConsumer(silent=True)
-        self._vsim_process.consume_output(consumer)
+        self._asim_process.consume_output(consumer)
         return consumer.var
 
     def _run_persistent(self, common_file_name, load_only=False):
@@ -319,20 +319,20 @@ proc vunit_help {} {
 
             return True
         except Process.NonZeroExitCode:
-            self._create_vsim_process()
+            self._create_asim_process()
             return False
 
     def simulate(self, output_path, library_name, entity_name, architecture_name=None, generics=None, pli=None, load_only=None, fail_on_warning=False):
         generics = {} if generics is None else generics
         pli = [] if pli is None else pli
-        msim_output_path = abspath(join(output_path, "msim"))
-        common_file_name = join(msim_output_path, "common.do")
-        user_file_name = join(msim_output_path, "user.do")
-        batch_file_name = join(msim_output_path, "batch.do")
+        asim_output_path = abspath(join(output_path, "asim"))
+        common_file_name = join(asim_output_path, "common.do")
+        user_file_name = join(asim_output_path, "user.do")
+        batch_file_name = join(asim_output_path, "batch.do")
 
         common_do = self._create_common_script(library_name, entity_name, architecture_name, generics, pli,
                                                fail_on_warning=fail_on_warning,
-                                               output_path=msim_output_path)
+                                               output_path=asim_output_path)
         user_do = self._create_user_script(common_file_name)
         batch_do = self._create_batch_script(common_file_name, load_only)
         write_file(common_file_name, common_do)
@@ -341,7 +341,7 @@ proc vunit_help {} {
 
         if self._gui:
             success = self._run_batch_file(user_file_name, gui=True)
-        elif self._vsim_process is None:
+        elif self._asim_process is None:
             success = self._run_batch_file(batch_file_name)
         else:
             success = self._run_persistent(common_file_name, load_only)
@@ -352,13 +352,12 @@ proc vunit_help {} {
         return self.simulate(output_path, library_name, entity_name, architecture_name, generics, pli, load_only=True)
 
     def __del__(self):
-        if self._vsim_process is not None:
-            del self._vsim_process
-
+        if self._asim_process is not None:
+            del self._asim_process
 
 class OutputConsumer:
     """
-    Consume output from modelsim and print with indentation
+    Consume output from riviera and print with indentation
     """
     def __init__(self, silent=False):
         self.var = None
@@ -377,7 +376,6 @@ class OutputConsumer:
         if not self.silent:
             print(line)
 
-
 def fix_path(path):
-    """ Modelsim does not like backslash """
+    """ riviera does not like backslash """
     return path.replace("\\", "/").replace(" ", "\\ ")

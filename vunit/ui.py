@@ -19,6 +19,7 @@ import vunit.ostools as ostools
 from vunit.color_printer import (ColorPrinter,
                                  NoColorPrinter)
 from vunit.modelsim_interface import ModelSimInterface
+from vunit.riviera_pro_interface import RivieraProInterface
 from vunit.project import Project
 from vunit.test_runner import TestRunner
 from vunit.test_report import TestReport
@@ -45,8 +46,15 @@ class VUnit:
         Return a list of available simulators
         """
         sims = []
-        if ModelSimInterface.is_available():
-            sims.append(ModelSimInterface.name)
+        
+        path = ModelSimInterface.is_available()
+        if path:
+            sims.append((ModelSimInterface.name, path))
+        
+        path = RivieraProInterface.is_available()
+        if path:
+            sims.append((RivieraProInterface.name, path))
+
         return sims
 
     @classmethod
@@ -90,9 +98,12 @@ class VUnit:
         if len(simulators) == 0:
             raise RuntimeError("No simulator detected")
         elif preferred_simulator is not None:
-            if preferred_simulator not in simulators:
-                raise RuntimeError("%s: %r is not available. Available simulators are %r"
-                                   % (description, preferred_simulator, simulators))
+            for s in simulators:
+                if preferred_simulator in s[0]:
+                    return
+                
+        raise RuntimeError("%s: %r is not available. Available simulators are %r"
+                           % (description, preferred_simulator, simulators))
 
     @classmethod
     def _create_argument_parser(cls, simulators, preferred_simulator):
@@ -140,7 +151,7 @@ class VUnit:
 
         parser.add_argument('--sim',
                             default=preferred_simulator,
-                            choices=simulators)
+                            choices=simulators[0])
 
         return parser
 
@@ -192,9 +203,9 @@ class VUnit:
         self._check_preprocessor = None
 
         if simulator_name is not None:
-            self._simulator_name = simulator_name
+            self._simulator_name = simulator_name            
         else:
-            self._simulator_name = self._available_simulators()[0]
+            self._simulator_name, self._simulator_path = self._available_simulators()[0]
 
         self._sim_specific_path = join(self._output_path, self._simulator_name)
         self._create_output_path()
@@ -369,7 +380,10 @@ class VUnit:
             return ModelSimInterface(
                 join(self._sim_specific_path, "modelsim.ini"),
                 persistent=self._persistent_sim and not self._gui,
-                gui=self._gui)
+                gui=self._gui, path=self._simulator_path)
+        elif self._simulator_name == RivieraProInterface.name:
+            return RivieraProInterface(                               
+                gui=self._gui, path=self._simulator_path)
         else:
             raise RuntimeError("Unknown simulator %s" % self._simulator_name)
 
@@ -505,8 +519,7 @@ class LibraryFacade:
 
     def set_generic(self, name, value):
         """ Set generic within library """
-        self._parent._configuration.set_generic(
-            name, value, scope=self._library_name)
+        self._parent._configuration.set_generic(name, value, scope=self._library_name)
 
     def set_pli(self, value):
         """ Set pli within library """
